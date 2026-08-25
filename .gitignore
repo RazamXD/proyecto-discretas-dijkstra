@@ -1,0 +1,125 @@
+# ─── Compilación Java ──────────────────────────────────────────────────────────
+# Bytecode compilado
+*.class
+
+# Archivos de objeto y bibliotecas nativas
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+
+# Archivos de log
+*.log
+
+# Archivos BlueJ
+*.bjp
+*.ctxt
+
+# Archivos Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Archivos de paquete
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Archivos virtuales de JVM (crash logs, heap dumps)
+hs_err_pid*
+replay_pid*
+
+# ─── Maven ─────────────────────────────────────────────────────────────────────
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# ─── Gradle ────────────────────────────────────────────────────────────────────
+.gradle/
+build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# ─── IDEs ──────────────────────────────────────────────────────────────────────
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.project
+.classpath
+.settings/
+.factorypath
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.loadpath
+.recommenders
+
+# NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# Visual Studio Code
+.vscode/
+.history/
+*.vsidx
+
+# Android Studio
+*.hprof
+captures/
+
+# ─── Sistema Operativo ─────────────────────────────────────────────────────────
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+
+# ─── Misceláneos ───────────────────────────────────────────────────────────────
+.env
+.env.local
+*.orig
+HELP.md
