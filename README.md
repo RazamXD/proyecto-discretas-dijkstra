@@ -220,14 +220,6 @@ Desarrollado como proyecto de la asignatura **Matemáticas Discretas** —
 aplicación práctica de teoría de grafos y algoritmos de caminos mínimos
 al dominio de la movilidad urbana.
 
-| Nombre | Rol |
-|---|---|
-| <!-- Nombre 1 --> | <!-- Rol / Responsabilidad --> |
-| <!-- Nombre 2 --> | <!-- Rol / Responsabilidad --> |
-| <!-- Nombre 3 --> | <!-- Rol / Responsabilidad --> |
-
----
-
 ## 📄 Licencia
 
 Este proyecto se distribuye bajo la licencia **MIT**.
