@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Optimizador de Rutas — Dijkstra con Transbordos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & tokens ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #1c2128;
+      --border:    #30363d;
+      --border2:   #21262d;
+      --text:      #e6edf3;
+      --text2:     #8b949e;
+      --text3:     #6e7681;
+      --accent:    #388bfd;
+      --accent-glow: rgba(56,139,253,.25);
+      --success:   #3fb950;
+      --warn:      #d29922;
+      --danger:    #f85149;
+
+      --l1: #388bfd;  --l1-bg: rgba(56,139,253,.15);
+      --l2: #f0883e;  --l2-bg: rgba(240,136,62,.15);
+      --l3: #3fb950;  --l3-bg: rgba(63,185,80,.15);
+      --l4: #bc8cff;  --l4-bg: rgba(188,140,255,.15);
+      --l5: #ff7b72;  --l5-bg: rgba(255,123,114,.15);
+
+      --radius: 8px;
+      --radius-lg: 12px;
+      --transition: 150ms ease;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 20px;
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -.3px;
+    }
+    .logo-icon { font-size: 20px; }
+    .header-sub {
+      font-size: 12px;
+      color: var(--text3);
+      margin-left: 4px;
+      font-weight: 400;
+    }
+    .badge {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .chip {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 500;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+    }
+    .chip.green { color: var(--success); border-color: rgba(63,185,80,.4); background: rgba(63,185,80,.08); }
+
+    /* ── Main layout ─────────────────────────────────────────────── */
+    .app {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-scroll {
+      overflow-y: auto;
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+    .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 10px;
+    }
+
+    /* ── Form elements ───────────────────────────────────────────── */
+    label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 5px; }
+    input, select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 7px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      outline: none;
+    }
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    input::placeholder { color: var(--text3); }
+    select option { background: var(--surface2); }
+
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+
+    .field { margin-bottom: 10px; }
+
+    /* ── Buttons ─────────────────────────────────────────────────── */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      border: none;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #58a6ff; box-shadow: 0 0 12px var(--accent-glow); }
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--border2); border-color: var(--text3); }
+    .btn-success {
+      background: var(--success);
+      color: #000;
+      font-weight: 600;
+    }
+    .btn-success:hover { background: #56d364; box-shadow: 0 0 12px rgba(63,185,80,.3); }
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid rgba(248,81,73,.3);
+      font-size: 11px;
+      padding: 4px 8px;
+      width: auto;
+    }
+    .btn-danger:hover { background: rgba(248,81,73,.1); }
+
+    /* ── Line color picker ───────────────────────────────────────── */
+    .line-picker {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .line-pill {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all var(--transition);
+      user-select: none;
+    }
+    .line-pill.active { border-color: #fff; }
+    .line-pill[data-line="L1"] { background: var(--l1-bg); color: var(--l1); }
+    .line-pill[data-line="L1"].active { background: var(--l1); color: #fff; }
+    .line-pill[data-line="L2"] { background: var(--l2-bg); color: var(--l2); }
+    .line-pill[data-line="L2"].active { background: var(--l2); color: #fff; }
+    .line-pill[data-line="L3"] { background: var(--l3-bg); color: var(--l3); }
+    .line-pill[data-line="L3"].active { background: var(--l3); color: #fff; }
+    .line-pill[data-line="L4"] { background: var(--l4-bg); color: var(--l4); }
+    .line-pill[data-line="L4"].active { background: var(--l4); color: #fff; }
+    .line-pill[data-line="L5"] { background: var(--l5-bg); color: var(--l5); }
+    .line-pill[data-line="L5"].active { background: var(--l5); color: #fff; }
+
+    /* ── Lists ───────────────────────────────────────────────────── */
+    .item-list { display: flex; flex-direction: column; gap: 4px; }
+    .list-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: var(--radius);
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      font-size: 12px;
+      animation: fadeIn .2s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; transform: translateY(-4px); } to { opacity:1; transform: translateY(0); } }
+    .list-item .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .list-item .name { flex: 1; font-weight: 500; }
+    .list-item .meta { color: var(--text3); font-size: 11px; }
+
+    /* ── Penalty slider ──────────────────────────────────────────── */
+    .penalty-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .penalty-val {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--warn);
+      font-variant-numeric: tabular-nums;
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      padding: 0;
+      border: none;
+      box-shadow: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--warn);
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(210,153,34,.5);
+    }
+
+    /* ── Route selectors ─────────────────────────────────────────── */
+    .route-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .route-row .arrow { color: var(--accent); font-size: 16px; flex-shrink: 0; }
+
+    /* ── Canvas area ─────────────────────────────────────────────── */
+    .canvas-area {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+    .canvas-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text2);
+      flex-shrink: 0;
+    }
+    .toolbar-hint {
+      margin-left: auto;
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+    }
+    .hint { display: flex; align-items: center; gap: 4px; }
+    .kbd {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0 5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+    }
+
+    #graphCanvas {
+      flex: 1;
+      display: block;
+      cursor: default;
+      background:
+        radial-gradient(ellipse at 20% 30%, rgba(56,139,253,.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(63,185,80,.03) 0%, transparent 50%),
+        var(--bg);
+    }
+
+    /* ── Result panel ────────────────────────────────────────────── */
+    .result-panel {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 14px 20px;
+      flex-shrink: 0;
+      min-height: 110px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .result-panel::-webkit-scrollbar { height: 4px; }
+
+    .result-empty {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text3);
+      font-size: 13px;
+    }
+    .result-empty .icon { font-size: 20px; }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 10px;
+    }
+    .result-title {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+    }
+    .result-stats {
+      display: flex;
+      gap: 16px;
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stat-val {
+      font-size: 18px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .stat-val.cost { color: var(--accent); }
+    .stat-val.transfers { color: var(--warn); }
+    .stat-lbl { font-size: 10px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: .5px; }
+
+    .route-steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .step-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .step-circle {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      border: 2px solid;
+      position: relative;
+    }
+    .step-circle.start { border-color: var(--success); background: rgba(63,185,80,.15); color: var(--success); }
+    .step-circle.end   { border-color: var(--accent);  background: var(--accent-glow); color: var(--accent); }
+    .step-circle.mid   { border-color: var(--border);  background: var(--surface2); color: var(--text); }
+    .step-name { font-size: 9px; color: var(--text2); max-width: 60px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .step-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+    .step-line {
+      height: 2px;
+      width: 40px;
+      border-radius: 1px;
+      margin-top: 15px;
+    }
+    .step-weight { font-size: 9px; color: var(--text3); margin-top: 2px; }
+
+    .transfer-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      margin-top: -16px;
+    }
+    .transfer-icon { font-size: 14px; }
+    .transfer-lbl { font-size: 8px; color: var(--warn); font-weight: 600; text-transform: uppercase; }
+
+    .no-route-msg {
+      color: var(--danger);
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Tooltip ─────────────────────────────────────────────────── */
+    #tooltip {
+      position: fixed;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 10px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .15s;
+      z-index: 100;
+      white-space: nowrap;
+    }
+
+    /* ── Divider ─────────────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border2); margin: 4px 0; }
+
+    /* ── Preset buttons ──────────────────────────────────────────── */
+    .preset-row { display: flex; gap: 6px; }
+    .btn-preset {
+      flex: 1;
+      padding: 6px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text2);
+      font-size: 11px;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: center;
+      transition: all var(--transition);
+    }
+    .btn-preset:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <span class="logo-icon">🚌</span>
+    Optimizador de Rutas
+    <span class="header-sub">Dijkstra con Penalización por Transbordo</span>
+  </div>
+  <div class="badge">
+    <span class="chip green">● Algoritmo activo</span>
+    <span class="chip" id="nodeCount">0 estaciones</span>
+    <span class="chip" id="edgeCount">0 conexiones</span>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-scroll">
+
+      <!-- Preset networks -->
+      <div>
+        <div class="section-title">Redes de ejemplo</div>
+        <div class="preset-row">
+          <button class="btn-preset" onclick="loadPreset('simple')">🗺 Simple</button>
+          <button class="btn-preset" onclick="loadPreset('medium')">🏙 Ciudad</button>
+          <button class="btn-preset" onclick="loadPreset('complex')">🌐 Metro</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Add station -->
+      <div>
+        <div class="section-title">Agregar Estación</div>
+        <div class="field">
+          <input id="stationName" type="text" placeholder="Nombre de la estación" />
+        </div>
+        <button class="btn btn-secondary" onclick="addStation()">
+          <span>＋</span> Agregar Estación
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Add connection -->
+      <div>
+        <div class="section-title">Agregar Conexión</div>
+        <div class="field">
+          <label>Desde</label>
+          <select id="edgeFrom"><option value="">— seleccionar —</option></select>
+        </div>
+        <div class="field">
+          <label>Hasta</label>
+          <select id="edgeTo"><option value="">— seleccionar —</option></select>
+        </div>
+        <div class="field">
+          <label>Línea de transporte</label>
+          <div class="line-picker" id="linePicker">
+            <span class="line-pill active" data-line="L1" onclick="selectLine(this)">L1</span>
+            <span class="line-pill" data-line="L2" onclick="selectLine(this)">L2</span>
+            <span class="line-pill" data-line="L3" onclick="selectLine(this)">L3</span>
+            <span class="line-pill" data-line="L4" onclick="selectLine(this)">L4</span>
+            <span class="line-pill" data-line="L5" onclick="selectLine(this)">L5</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Tiempo de viaje (minutos)</label>
+          <input id="edgeWeight" type="number" min="1" max="120" value="5" />
+        </div>
+        <div class="row" style="margin-bottom:6px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2);">
+            <input type="checkbox" id="bidir" checked style="width:auto;accent-color:var(--accent)"/>
+            Bidireccional
+          </label>
+        </div>
+        <button class="btn btn-secondary" onclick="addEdge()">
+          <span>⇌</span> Agregar Conexión
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Penalty -->
+      <div>
+        <div class="section-title">Penalización por Transbordo</div>
+        <div class="penalty-display">
+          <span style="font-size:12px;color:var(--text2)">Minutos extra al cambiar de línea</span>
+          <span class="penalty-val" id="penaltyVal">5</span>
+        </div>
+        <input type="range" id="penaltySlider" min="0" max="30" value="5" step="1"
+               oninput="document.getElementById('penaltyVal').textContent=this.value" />
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px">
+          <span>0 min (sin penalización)</span><span>30 min</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Route calculation -->
+      <div>
+        <div class="section-title">Calcular Ruta</div>
+        <div class="field">
+          <label>Origen</label>
+          <select id="routeFrom"><option value="">— seleccionar —</option></select>
+        </div>
+        <div class="field">
+          <label>Destino</label>
+          <select id="routeTo"><option value="">— seleccionar —</option></select>
+        </div>
+        <button class="btn btn-success" onclick="calculateRoute()">
+          <span>⚡</span> Calcular Ruta Óptima
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Node list -->
+      <div>
+        <div class="section-title">Estaciones (<span id="stationListCount">0</span>)</div>
+        <div class="item-list" id="stationList"></div>
+      </div>
+
+      <!-- Edge list -->
+      <div>
+        <div class="section-title">Conexiones (<span id="edgeListCount">0</span>)</div>
+        <div class="item-list" id="edgeList"></div>
+      </div>
+
+      <!-- Clear -->
+      <button class="btn btn-danger" onclick="clearAll()" style="width:100%;justify-content:center;">
+        🗑 Limpiar todo
+      </button>
+
+    </div>
+  </aside>
+
+  <!-- ── Canvas + Results ─────────────────────────────────────────── -->
+  <div class="canvas-area">
+    <div class="canvas-toolbar">
+      <span>🖱 Arrastra para mover estaciones</span>
+      <div class="toolbar-hint">
+        <span class="hint"><span class="kbd">Clic</span> mover nodo</span>
+        <span class="hint"><span class="kbd">Hover</span> ver info</span>
+      </div>
+    </div>
+    <canvas id="graphCanvas"></canvas>
+    <div class="result-panel" id="resultPanel">
+      <div class="result-empty">
+        <span class="icon">🔍</span>
+        Selecciona origen y destino, luego presiona <strong style="color:var(--text);margin:0 4px">Calcular Ruta Óptima</strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   DATA MODEL
+═══════════════════════════════════════════════════════════════════ */
+const LINE_COLORS = {
+  L1: '#388bfd', L2: '#f0883e', L3: '#3fb950', L4: '#bc8cff', L5: '#ff7b72'
+};
+
+let nodes = [];   // { id, name, x, y }
+let edges = [];   // { from, to, weight, lineId, bidir }
+let nodeIdSeq = 0;
+let selectedLine = 'L1';
+let lastRoute = null;   // highlighted path edge ids
+
+/* ═══════════════════════════════════════════════════════════════════
+   CANVAS SETUP
+═══════════════════════════════════════════════════════════════════ */
+const canvas = document.getElementById('graphCanvas');
+const ctx = canvas.getContext('2d');
+let dragNode = null, dragOffX = 0, dragOffY = 0;
+let hoveredNode = null;
+
+function resizeCanvas() {
+  const parent = canvas.parentElement;
+  canvas.width  = parent.clientWidth;
+  canvas.height = parent.clientHeight - document.querySelector('.canvas-toolbar').offsetHeight
+                  - document.getElementById('resultPanel').offsetHeight;
+  draw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+/* ── Mouse events ────────────────────────────────────────────────── */
+canvas.addEventListener('mousedown', e => {
+  const { x, y } = canvasPos(e);
+  dragNode = nodes.find(n => dist(n, { x, y }) < 22);
+  if (dragNode) {
+    dragOffX = x - dragNode.x;
+    dragOffY = y - dragNode.y;
+    canvas.style.cursor = 'grabbing';
+  }
+});
+canvas.addEventListener('mousemove', e => {
+  const { x, y } = canvasPos(e);
+  if (dragNode) {
+    dragNode.x = x - dragOffX;
+    dragNode.y = y - dragOffY;
+    draw();
+    return;
+  }
+  const hov = nodes.find(n => dist(n, { x, y }) < 22);
+  if (hov !== hoveredNode) { hoveredNode = hov; draw(); }
+  const tip = document.getElementById('tooltip');
+  if (hov) {
+    tip.textContent = hov.name;
+    tip.style.left  = (e.clientX + 12) + 'px';
+    tip.style.top   = (e.clientY - 8)  + 'px';
+    tip.style.opacity = '1';
+    canvas.style.cursor = 'grab';
+  } else {
+    tip.style.opacity = '0';
+    canvas.style.cursor = 'default';
+  }
+});
+canvas.addEventListener('mouseup', () => { dragNode = null; canvas.style.cursor = 'default'; });
+canvas.addEventListener('mouseleave', () => {
+  dragNode = null;
+  document.getElementById('tooltip').style.opacity = '0';
+});
+
+function canvasPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DRAW
+═══════════════════════════════════════════════════════════════════ */
+function draw() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid dots
+  ctx.fillStyle = 'rgba(255,255,255,.03)';
+  for (let x = 20; x < W; x += 40)
+    for (let y = 20; y < H; y += 40)
+      ctx.fillRect(x, y, 1, 1);
+
+  const routeEdgeSet = new Set(lastRoute ? lastRoute.edgeIds : []);
+
+  // Draw edges
+  edges.forEach((e, idx) => {
+    const from = nodes.find(n => n.id === e.from);
+    const to   = nodes.find(n => n.id === e.to);
+    if (!from || !to) return;
+
+    const isRoute = routeEdgeSet.has(idx);
+    const color = LINE_COLORS[e.lineId] || '#888';
+
+    // Offset for parallel edges
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len * 6, ny = dx / len * 6;
+
+    ctx.save();
+    ctx.strokeStyle = isRoute ? color : color + '55';
+    ctx.lineWidth   = isRoute ? 3 : 1.5;
+    if (isRoute) {
+      ctx.shadowColor  = color;
+      ctx.shadowBlur   = 10;
+    }
+    ctx.beginPath();
+    ctx.moveTo(from.x + nx, from.y + ny);
+    ctx.lineTo(to.x + nx, to.y + ny);
+    ctx.stroke();
+    ctx.restore();
+
+    // Arrow
+    drawArrow(from.x + nx, from.y + ny, to.x + nx, to.y + ny, color, isRoute);
+
+    // Weight label
+    const mx = (from.x + to.x) / 2 + nx * 2;
+    const my = (from.y + to.y) / 2 + ny * 2;
+    ctx.save();
+    ctx.fillStyle = isRoute ? '#fff' : color + 'aa';
+    ctx.font = `${isRoute ? 600 : 500} 10px Inter`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${e.weight}m`, mx, my);
+    ctx.restore();
+  });
+
+  // Draw nodes
+  const routeNodeSet = new Set(lastRoute ? lastRoute.nodeIds : []);
+  nodes.forEach(n => {
+    const isRoute  = routeNodeSet.has(n.id);
+    const isHov    = n === hoveredNode;
+    const isOrigin = lastRoute && lastRoute.nodeIds[0] === n.id;
+    const isDest   = lastRoute && lastRoute.nodeIds[lastRoute.nodeIds.length - 1] === n.id;
+
+    // Shadow / glow
+    ctx.save();
+    if (isOrigin) { ctx.shadowColor = '#3fb950'; ctx.shadowBlur = 20; }
+    else if (isDest) { ctx.shadowColor = '#388bfd'; ctx.shadowBlur = 20; }
+    else if (isHov) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 12; }
+    else if (isRoute) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 8; }
+
+    // Circle fill
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, 20, 0, Math.PI * 2);
+    if (isOrigin)     ctx.fillStyle = 'rgba(63,185,80,.25)';
+    else if (isDest)  ctx.fillStyle = 'rgba(56,139,253,.25)';
+    else if (isRoute) ctx.fillStyle = 'rgba(255,255,255,.1)';
+    else              ctx.fillStyle = '#1c2128';
+    ctx.fill();
+
+    // Border
+    ctx.lineWidth = isRoute ? 2.5 : 1.5;
+    ctx.strokeStyle = isOrigin ? '#3fb950'
+                    : isDest   ? '#388bfd'
+                    : isRoute  ? '#e6edf3'
+                    : isHov    ? '#8b949e'
+                    : '#30363d';
+    ctx.stroke();
+    ctx.restore();
+
+    // Label
+    ctx.save();
+    ctx.fillStyle = isRoute ? '#fff' : '#8b949e';
+    ctx.font = `${isRoute ? 600 : 500} 10px Inter`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const label = n.name.length > 8 ? n.name.slice(0, 7) + '…' : n.name;
+    ctx.fillText(label, n.x, n.y);
+    ctx.restore();
+
+    // Origin / Dest badge
+    if (isOrigin || isDest) {
+      ctx.save();
+      ctx.fillStyle = isOrigin ? '#3fb950' : '#388bfd';
+      ctx.font = 'bold 8px Inter';
+      ctx.textAlign = 'center';
+      ctx.fillText(isOrigin ? 'ORIGEN' : 'DEST', n.x, n.y - 28);
+      ctx.restore();
+    }
+  });
+}
+
+function drawArrow(x1, y1, x2, y2, color, highlight) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 40) return;
+  const ux = dx / len, uy = dy / len;
+  // Arrow tip at node edge
+  const ax = x2 - ux * 22, ay = y2 - uy * 22;
+  const angle = Math.atan2(dy, dx);
+  ctx.save();
+  ctx.fillStyle = highlight ? color : color + '77';
+  ctx.beginPath();
+  ctx.translate(ax, ay);
+  ctx.rotate(angle);
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-7, -3.5);
+  ctx.lineTo(-7, 3.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   STATION MANAGEMENT
+═══════════════════════════════════════════════════════════════════ */
+function addStation(nameOverride, xOverride, yOverride) {
+  const inp = document.getElementById('stationName');
+  const name = nameOverride || inp.value.trim();
+  if (!name) { shake(inp); return; }
+  if (nodes.find(n => n.name.toLowerCase() === name.toLowerCase())) {
+    flash('Ya existe una estación con ese nombre', 'warn'); return;
+  }
+  const W = canvas.width || 800, H = canvas.height || 400;
+  const x = xOverride !== undefined ? xOverride : 80 + Math.random() * (W - 160);
+  const y = yOverride !== undefined ? yOverride : 80 + Math.random() * (H - 160);
+  nodes.push({ id: 'N' + nodeIdSeq++, name, x, y });
+  if (!nameOverride) inp.value = '';
+  refreshUI();
+  draw();
+}
+
+function addEdge(fromId, toId, weight, lineId, bidir) {
+  const from   = fromId   || document.getElementById('edgeFrom').value;
+  const to     = toId     || document.getElementById('edgeTo').value;
+  const w      = weight   || parseFloat(document.getElementById('edgeWeight').value);
+  const line   = lineId   || selectedLine;
+  const isBi   = bidir !== undefined ? bidir : document.getElementById('bidir').checked;
+
+  if (!from || !to) { flash('Selecciona origen y destino de la conexión', 'warn'); return; }
+  if (from === to)  { flash('La estación de origen y destino deben ser distintas', 'warn'); return; }
+  if (!w || w <= 0) { flash('El tiempo de viaje debe ser mayor a 0', 'warn'); return; }
+
+  // Avoid exact duplicate
+  const exists = edges.some(e => e.from === from && e.to === to && e.lineId === line);
+  if (exists) { flash('Esta conexión ya existe en esa línea', 'warn'); return; }
+
+  edges.push({ from, to, weight: w, lineId: line, bidir: isBi });
+  if (isBi) edges.push({ from: to, to: from, weight: w, lineId: line, bidir: isBi });
+  refreshUI(); draw();
+}
+
+function clearAll() {
+  if (!confirm('¿Limpiar toda la red?')) return;
+  nodes = []; edges = []; lastRoute = null;
+  document.getElementById('resultPanel').innerHTML = '<div class="result-empty"><span class="icon">🔍</span>Selecciona origen y destino, luego presiona <strong style="color:var(--text);margin:0 4px">Calcular Ruta Óptima</strong></div>';
+  refreshUI(); draw();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UI REFRESH
+═══════════════════════════════════════════════════════════════════ */
+function refreshUI() {
+  // Selects
+  ['edgeFrom','edgeTo','routeFrom','routeTo'].forEach(id => {
+    const sel = document.getElementById(id);
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— seleccionar —</option>';
+    nodes.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n.id; opt.textContent = n.name;
+      if (n.id === prev) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+
+  // Station list
+  const sl = document.getElementById('stationList');
+  sl.innerHTML = '';
+  nodes.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'list-item';
+    el.innerHTML = `<div class="dot" style="background:#8b949e"></div>
+      <span class="name">${n.name}</span>
+      <button class="btn btn-danger" onclick="removeNode('${n.id}')">✕</button>`;
+    sl.appendChild(el);
+  });
+  document.getElementById('stationListCount').textContent = nodes.length;
+
+  // Edge list
+  const el = document.getElementById('edgeList');
+  el.innerHTML = '';
+  const shown = new Set();
+  edges.forEach((e, idx) => {
+    const key = [e.from,e.to,e.lineId].join('-');
+    const keyRev = [e.to,e.from,e.lineId].join('-');
+    if (shown.has(key)) return;
+    shown.add(key); shown.add(keyRev);
+    const fromN = nodes.find(n => n.id === e.from);
+    const toN   = nodes.find(n => n.id === e.to);
+    if (!fromN || !toN) return;
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    div.innerHTML = `
+      <div class="dot" style="background:${LINE_COLORS[e.lineId]}"></div>
+      <span class="name" style="font-size:11px">${fromN.name} ⇌ ${toN.name}</span>
+      <span class="meta">${e.weight}m ${e.lineId}</span>
+      <button class="btn btn-danger" onclick="removeEdge(${idx})">✕</button>`;
+    el.appendChild(div);
+  });
+  document.getElementById('edgeListCount').textContent = shown.size;
+
+  // Header chips
+  document.getElementById('nodeCount').textContent = nodes.length + ' estaciones';
+  document.getElementById('edgeCount').textContent = (shown.size) + ' conexiones';
+}
+
+function removeNode(id) {
+  nodes  = nodes.filter(n => n.id !== id);
+  edges  = edges.filter(e => e.from !== id && e.to !== id);
+  lastRoute = null;
+  refreshUI(); draw();
+}
+
+function removeEdge(idx) {
+  const e = edges[idx];
+  // Remove the pair if bidireccional
+  edges = edges.filter((ed, i) =>
+    i !== idx && !(ed.from === e.to && ed.to === e.from && ed.lineId === e.lineId)
+  );
+  lastRoute = null;
+  refreshUI(); draw();
+}
+
+function selectLine(el) {
+  document.querySelectorAll('.line-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  selectedLine = el.dataset.line;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DIJKSTRA (mirrors the Java implementation)
+═══════════════════════════════════════════════════════════════════ */
+function calculateRoute() {
+  const fromId  = document.getElementById('routeFrom').value;
+  const toId    = document.getElementById('routeTo').value;
+  const penalty = parseFloat(document.getElementById('penaltySlider').value);
+
+  if (!fromId || !toId) { flash('Selecciona origen y destino para calcular', 'warn'); return; }
+  if (fromId === toId)  { flash('El origen y el destino no pueden ser iguales', 'warn'); return; }
+
+  // Extended state: { cost, nodeId, currentLine, prevEdgeIdx }
+  const INF = Infinity;
+  const dist = {}; // nodeId -> best cost
+  const prev = {}; // nodeId -> { edgeIdx, fromNode }
+  nodes.forEach(n => { dist[n.id] = INF; });
+  dist[fromId] = 0;
+
+  // Min-heap (simple array for small graphs)
+  const queue = [{ cost: 0, nodeId: fromId, currentLine: null }];
+
+  const visited = new Set();
+
+  while (queue.length > 0) {
+    queue.sort((a, b) => a.cost - b.cost);
+    const state = queue.shift();
+    if (visited.has(state.nodeId)) continue;
+    visited.add(state.nodeId);
+    if (state.nodeId === toId) break;
+
+    // Neighbors
+    edges.forEach((e, idx) => {
+      if (e.from !== state.nodeId) return;
+      if (visited.has(e.to)) return;
+      const transfer = state.currentLine && state.currentLine !== e.lineId;
+      const newCost  = state.cost + e.weight + (transfer ? penalty : 0);
+      if (newCost < dist[e.to]) {
+        dist[e.to] = newCost;
+        prev[e.to] = { edgeIdx: idx, fromNodeId: state.nodeId, lineId: e.lineId };
+        queue.push({ cost: newCost, nodeId: e.to, currentLine: e.lineId });
+      }
+    });
+  }
+
+  // Reconstruct path
+  if (dist[toId] === INF) {
+    lastRoute = null;
+    renderNoRoute(fromId, toId);
+    draw();
+    return;
+  }
+
+  // Walk back
+  const pathEdgeIdxs = [];
+  const pathNodeIds  = [];
+  let cursor = toId;
+  while (cursor !== fromId) {
+    pathNodeIds.unshift(cursor);
+    const p = prev[cursor];
+    pathEdgeIdxs.unshift(p.edgeIdx);
+    cursor = p.fromNodeId;
+  }
+  pathNodeIds.unshift(fromId);
+
+  // Count transfers
+  let transfers = 0;
+  let prevLine  = null;
+  const stepLines = [];
+  pathEdgeIdxs.forEach(idx => {
+    const e = edges[idx];
+    if (prevLine && prevLine !== e.lineId) transfers++;
+    stepLines.push(e.lineId);
+    prevLine = e.lineId;
+  });
+
+  lastRoute = { edgeIds: pathEdgeIdxs, nodeIds: pathNodeIds };
+  renderResult(fromId, toId, dist[toId], transfers, pathEdgeIdxs, pathNodeIds, stepLines, penalty);
+  draw();
+}
+
+function renderResult(fromId, toId, cost, transfers, edgeIdxs, nodeIds, lines, penalty) {
+  const fromN = nodes.find(n => n.id === fromId);
+  const toN   = nodes.find(n => n.id === toId);
+  const panel = document.getElementById('resultPanel');
+
+  let stepsHTML = '';
+  nodeIds.forEach((nid, i) => {
+    const n = nodes.find(x => x.id === nid);
+    const cls = i === 0 ? 'start' : i === nodeIds.length - 1 ? 'end' : 'mid';
+    stepsHTML += `<div class="step-node">
+      <div class="step-circle ${cls}">${n.name.slice(0,4)}</div>
+      <div class="step-name">${n.name}</div>
+    </div>`;
+    if (i < edgeIdxs.length) {
+      const e = edges[edgeIdxs[i]];
+      const color = LINE_COLORS[e.lineId];
+      const isTransfer = i > 0 && lines[i] !== lines[i - 1];
+      if (isTransfer) {
+        stepsHTML += `<div class="transfer-badge"><span class="transfer-icon">🔄</span><span class="transfer-lbl">+${penalty}m</span></div>`;
+      }
+      stepsHTML += `<div class="step-connector">
+        <div class="step-line" style="background:${color}"></div>
+        <div class="step-weight" style="color:${color}">${e.weight}m ${e.lineId}</div>
+      </div>`;
+    }
+  });
+
+  panel.innerHTML = `
+    <div class="result-header">
+      <div class="result-title">🟢 ${fromN.name} → ${toN.name}</div>
+      <div class="result-stats">
+        <div class="stat">
+          <div class="stat-val cost">${cost.toFixed(1)}</div>
+          <div class="stat-lbl">min totales</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val transfers">${transfers}</div>
+          <div class="stat-lbl">transbordos</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" style="color:var(--text2)">${edgeIdxs.length}</div>
+          <div class="stat-lbl">tramos</div>
+        </div>
+      </div>
+    </div>
+    <div class="route-steps">${stepsHTML}</div>`;
+}
+
+function renderNoRoute(fromId, toId) {
+  const fromN = nodes.find(n => n.id === fromId);
+  const toN   = nodes.find(n => n.id === toId);
+  document.getElementById('resultPanel').innerHTML = `
+    <div class="no-route-msg">
+      ⚠️ No existe ruta desde <strong style="margin:0 4px">${fromN?.name}</strong>
+      hasta <strong style="margin:0 4px">${toN?.name}</strong>. Verifica las conexiones.
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PRESETS
+═══════════════════════════════════════════════════════════════════ */
+function loadPreset(type) {
+  nodes = []; edges = []; nodeIdSeq = 0; lastRoute = null;
+  resizeCanvas();
+  const W = canvas.width, H = canvas.height;
+
+  if (type === 'simple') {
+    // The exact example from Main.java
+    const pos = [
+      { name:'Terminal Norte', x: W*.15, y: H*.5  },
+      { name:'Plaza Central',  x: W*.35, y: H*.28 },
+      { name:'Mercado Sur',    x: W*.6,  y: H*.5  },
+      { name:'Universidad',    x: W*.85, y: H*.5  },
+      { name:'P. Industrial',  x: W*.35, y: H*.72 },
+    ];
+    pos.forEach(p => addStation(p.name, p.x, p.y));
+    const ns = nodes;
+    addEdge(ns[0].id, ns[1].id, 4,  'L1', false);
+    addEdge(ns[1].id, ns[2].id, 5,  'L1', false);
+    addEdge(ns[2].id, ns[3].id, 3,  'L1', false);
+    addEdge(ns[0].id, ns[4].id, 2,  'L2', true);
+    addEdge(ns[4].id, ns[2].id, 2,  'L2', false);
+    addEdge(ns[2].id, ns[3].id, 4,  'L3', false);
+
+  } else if (type === 'medium') {
+    const pos = [
+      { name:'Centro',       x: W*.5,  y: H*.5  },
+      { name:'Norte',        x: W*.5,  y: H*.15 },
+      { name:'Sur',          x: W*.5,  y: H*.82 },
+      { name:'Este',         x: W*.82, y: H*.5  },
+      { name:'Oeste',        x: W*.18, y: H*.5  },
+      { name:'NorEste',      x: W*.72, y: H*.22 },
+      { name:'SurOeste',     x: W*.28, y: H*.78 },
+    ];
+    pos.forEach(p => addStation(p.name, p.x, p.y));
+    const ns = nodes;
+    addEdge(ns[0].id, ns[1].id, 6,  'L1', true);
+    addEdge(ns[0].id, ns[2].id, 6,  'L1', true);
+    addEdge(ns[0].id, ns[3].id, 5,  'L2', true);
+    addEdge(ns[0].id, ns[4].id, 5,  'L2', true);
+    addEdge(ns[1].id, ns[5].id, 7,  'L3', true);
+    addEdge(ns[3].id, ns[5].id, 4,  'L3', true);
+    addEdge(ns[2].id, ns[6].id, 8,  'L4', true);
+    addEdge(ns[4].id, ns[6].id, 4,  'L4', true);
+    addEdge(ns[1].id, ns[3].id, 10, 'L1', false);
+    addEdge(ns[2].id, ns[4].id, 10, 'L2', false);
+
+  } else if (type === 'complex') {
+    const pos = [
+      { name:'Aeropuerto',   x: W*.12, y: H*.15 },
+      { name:'Terminal Cen', x: W*.35, y: H*.15 },
+      { name:'Plaza Mayor',  x: W*.6,  y: H*.15 },
+      { name:'Estadio',      x: W*.82, y: H*.15 },
+      { name:'Hospital',     x: W*.12, y: H*.5  },
+      { name:'Mercado',      x: W*.35, y: H*.5  },
+      { name:'Universidad',  x: W*.6,  y: H*.5  },
+      { name:'Parque',       x: W*.82, y: H*.5  },
+      { name:'Zona Ind.',    x: W*.12, y: H*.83 },
+      { name:'Barrio Sur',   x: W*.35, y: H*.83 },
+      { name:'Puerto',       x: W*.6,  y: H*.83 },
+      { name:'Teleférico',   x: W*.82, y: H*.83 },
+    ];
+    pos.forEach(p => addStation(p.name, p.x, p.y));
+    const ns = nodes;
+    // L1: horizontal norte
+    [[0,1],[1,2],[2,3]].forEach(([a,b]) => addEdge(ns[a].id,ns[b].id,8,'L1',true));
+    // L2: horizontal centro
+    [[4,5],[5,6],[6,7]].forEach(([a,b]) => addEdge(ns[a].id,ns[b].id,6,'L2',true));
+    // L3: horizontal sur
+    [[8,9],[9,10],[10,11]].forEach(([a,b]) => addEdge(ns[a].id,ns[b].id,7,'L3',true));
+    // L4: vertical izquierda
+    [[0,4],[4,8]].forEach(([a,b]) => addEdge(ns[a].id,ns[b].id,9,'L4',true));
+    // L5: vertical derecha
+    [[3,7],[7,11]].forEach(([a,b]) => addEdge(ns[a].id,ns[b].id,9,'L5',true));
+    // Conexiones diagonales
+    addEdge(ns[1].id,ns[5].id,5,'L2',false);
+    addEdge(ns[2].id,ns[6].id,5,'L2',false);
+    addEdge(ns[5].id,ns[9].id,5,'L3',false);
+    addEdge(ns[6].id,ns[10].id,5,'L3',false);
+  }
+  refreshUI(); draw();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITY
+═══════════════════════════════════════════════════════════════════ */
+function shake(el) {
+  el.style.animation = 'none';
+  requestAnimationFrame(() => {
+    el.style.animation = 'shake .3s ease';
+  });
+}
+function flash(msg, type) {
+  const tip = document.getElementById('tooltip');
+  tip.textContent = (type === 'warn' ? '⚠ ' : '') + msg;
+  tip.style.left = '50%'; tip.style.top = '60px';
+  tip.style.transform = 'translateX(-50%)';
+  tip.style.opacity = '1';
+  setTimeout(() => { tip.style.opacity = '0'; tip.style.transform = ''; }, 2500);
+}
+
+// Enter key on station input
+document.getElementById('stationName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addStation();
+});
+
+// Init
+window.addEventListener('load', () => {
+  resizeCanvas();
+  loadPreset('simple');
+});
+</script>
+</body>
+</html>
